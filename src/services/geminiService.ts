@@ -1,11 +1,10 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
-// Access the API key from Vite's environment variables
-const API_KEY = import.meta.env.VITE_API_KEY;
+// The build environment will replace process.env.API_KEY with the actual API key.
+const API_KEY = process.env.API_KEY;
 
 if (!API_KEY) {
-  // Provide a helpful error message for developers
-  throw new Error("VITE_API_KEY is not set. Please create a .env.local file in the root of your project and add VITE_API_KEY=<your_api_key>");
+  throw new Error("API_KEY environment variable not set. Please ensure it is configured in your environment.");
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
