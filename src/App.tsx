@@ -7,25 +7,25 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden transition-shadow duration-300 hover:shadow-2xl">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
+      <div className="max-w-sm w-full bg-white rounded-xl shadow-lg overflow-hidden">
         <img
-          className="w-full h-72 object-cover"
+          className="w-full h-64 object-cover"
           src={PRODUCT_IMAGE_URL}
-          alt="Modern Armchair"
+          alt="כורסה מודרנית"
         />
-        <div className="p-8">
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Modern Armchair</h1>
-          <p className="text-slate-600 mb-6 text-base">
-            A perfect blend of comfort and style, this armchair will elevate any living space.
+        <div className="p-6">
+          <h1 className="text-2xl font-bold text-slate-800 mb-2">כורסה מודרנית</h1>
+          <p className="text-slate-600 mb-4">
+            שילוב מושלם של נוחות וסטייל, כורסה זו תשדרג כל חלל מגורים.
           </p>
-          <div className="flex justify-between items-center mb-8">
-            <span className="text-4xl font-semibold text-slate-900">$299</span>
-            <span className="text-sm text-green-600 font-medium bg-green-100 px-3 py-1 rounded-full">In Stock</span>
+          <div className="flex justify-between items-center mb-6">
+            <span className="text-3xl font-semibold text-slate-900">$299</span>
+            <span className="text-sm text-green-500 font-medium">במלאי</span>
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="w-full bg-slate-900 text-white py-4 rounded-xl font-semibold text-lg hover:bg-slate-800 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-slate-300 shadow-md shadow-slate-900/10"
+            className="w-full bg-slate-800 text-white py-3 rounded-lg font-semibold text-lg hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-opacity-50"
           >
             נסה אצלך בבית
           </button>
