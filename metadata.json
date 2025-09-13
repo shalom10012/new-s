@@ -1,0 +1,5 @@
+{
+  "name": "E-Commerce Product Visualizer",
+  "description": "An e-commerce tool that allows customers to upload a photo of their space and see how a product would look in it, powered by generative AI to realistically fuse the images together.",
+  "requestFramePermissions": []
+}
