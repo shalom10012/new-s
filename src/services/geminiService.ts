@@ -67,6 +67,8 @@ export const fuseImages = async (productImage: ImageData, spaceImage: ImageData)
     if (error instanceof Error && (error.message.toLowerCase().includes('api key') || error.message.toLowerCase().includes('permission denied'))) {
         throw new Error("מפתח ה-API חסר או לא תקין. אנא ודא/י שהוא מוגדר כראוי בסביבת הפרויקט שלך.");
     }
-    throw new Error("אירעה שגיאה ביצירת התמונה. אנא נסה שוב.");
+    // Provide a more detailed error message for better debugging.
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`אירעה שגיאה ביצירת התמונה: ${errorMessage}`);
   }
 };

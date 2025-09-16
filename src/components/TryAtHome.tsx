@@ -61,8 +61,14 @@ const TryAtHome: React.FC<TryAtHomeProps> = ({ productImageUrl, onClose }) => {
     setLoadingMessage(loadingMessages[0]);
 
     try {
-      const productResponse = await fetch(productImageUrl);
-      if (!productResponse.ok) throw new Error("Failed to fetch product image.");
+      // Use a CORS proxy to prevent cross-origin issues when fetching the product image
+      const PROXY_URL = 'https://corsproxy.io/?';
+      const productResponse = await fetch(`${PROXY_URL}${encodeURIComponent(productImageUrl)}`);
+      
+      if (!productResponse.ok) {
+        throw new Error(`Failed to fetch product image. Status: ${productResponse.status}`);
+      }
+      
       const productBlob = await productResponse.blob();
       const productBase64 = await fileToBase64(new File([productBlob], "product", { type: productBlob.type }));
       
