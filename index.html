@@ -18,7 +18,168 @@
 </script>
 </head>
   <body>
+    <!-- 
+      This is mock product page content for the image finding script to work on.
+      In a real-world scenario, this would be the actual e-commerce page markup.
+      The script below will find the best product image from this markup.
+    -->
+    <div class="product-gallery" style="display: none;" aria-hidden="true">
+      <div class="image-container active">
+        <img 
+          src="https://picsum.photos/seed/small-chair/200/200" 
+          srcset="https://picsum.photos/seed/medium-chair/400/400 400w, https://picsum.photos/seed/large-chair/800/800 800w, https://picsum.photos/seed/zoom-chair/1200/1200 1200w"
+          sizes="(max-width: 600px) 400px, 800px"
+          data-zoom-image="https://picsum.photos/seed/zoom-chair/1600/1600"
+          alt="A different chair"
+        />
+      </div>
+    </div>
+
     <div id="root"></div>
+    
+    <script>
+      (function () {
+        // === כללי ===
+        const IMG_EXT = /\.(png|jpe?g|webp|avif)(\?|$)/i;
+
+        // מפענח URL כולל inner-URL (למשל speedsize עוטף בפנים http...jpg)
+        function extractInnerImageUrl(raw) {
+          if (!raw) return null;
+          try { raw = decodeURIComponent(raw); } catch(e) {}
+          // מחפש כתובת תמונה אמיתית בתוך המחרוזת כולה
+          const m = raw.match(/https?:\/\/[^\s"')]+?\.(?:png|jpe?g|webp|avif)(?:\?[^\s"')#]*)?/i);
+          if (m) return m[0];
+          // אם לא נמצא inner image – נבדוק אם ה-raw עצמו הוא תמונה
+          return IMG_EXT.test(raw) ? raw : null;
+        }
+
+        // לוקח URL אמיתי מתוך <img> כולל srcset/data-*
+        function urlFromImg(img) {
+          if (!img) return null;
+
+          // 1) currentSrc (הכי חכם בדפדפן)
+          if (img.currentSrc) {
+            const u = extractInnerImageUrl(img.currentSrc);
+            if (u) return u;
+          }
+
+          // 2) srcset/data-srcset – נבחר את הכי גדול (descriptor של w או האחרון)
+          const srcsetRaw = img.getAttribute('srcset') || img.dataset.srcset || img.getAttribute('data-srcset');
+          if (srcsetRaw) {
+            // מפענחים לפי w אם אפשר, אחרת ניקח את האחרון
+            const options = srcsetRaw.split(',').map(s => s.trim()).map(part => {
+              const [u, d] = part.split(/\s+/);
+              const url = extractInnerImageUrl(u);
+              const w = d && /(\d+)w/.exec(d)?.[1] ? parseInt(/(\d+)w/.exec(d)[1],10) : 0;
+              return url ? {url, w} : null;
+            }).filter(Boolean);
+            if (options.length) {
+              options.sort((a,b)=> (b.w||0)-(a.w||0));
+              return options[0].url;
+            }
+            // fallback: האחרון
+            const last = srcsetRaw.split(',').map(s=>s.trim()).pop();
+            if (last) {
+              const cand = extractInnerImageUrl(last.split(' ')[0]);
+              if (cand) return cand;
+            }
+          }
+
+          // 3) data-* נפוצים
+          const attrs = ['data-zoom-image','data-large','data-full','data-original','data-src','data-lazy-src'];
+          for (const a of attrs) {
+            const v = img.getAttribute(a);
+            const url = extractInnerImageUrl(v);
+            if (url) return url;
+          }
+
+          // 4) src רגיל
+          if (img.src) {
+            const url = extractInnerImageUrl(img.src);
+            if (url) return url;
+          }
+
+          return null;
+        }
+
+        // שולף URL מתג עם רקע CSS
+        function urlFromBg(el) {
+          if (!el) return null;
+          const bg = getComputedStyle(el).backgroundImage; // url("...jpg")
+          if (!bg || bg === 'none') return null;
+          const m = bg.match(/url\((['"]?)(.*?)\1\)/i);
+          if (m && m[2]) return extractInnerImageUrl(m[2]);
+          return null;
+        }
+
+        // שולף URL מ-<a href="...">
+        function urlFromAnchor(a) {
+          if (!a) return null;
+          const href = a.getAttribute('href');
+          return extractInnerImageUrl(href);
+        }
+
+        // מחפש תמונת מוצר ראשית בצורה חכמה
+        function findPrimaryImage() {
+          // 0) meta og:image קודם
+          const og = document.querySelector('meta[property="og:image"], meta[name="og:image"]');
+          if (og?.content) {
+            const u = extractInnerImageUrl(og.content);
+            if (u) return u;
+          }
+
+          // 1) חיפוש לפי סלקטורים שכיחים
+          const selectors = [
+            '.product-gallery .slick-current img',
+            '.product-gallery .active img',
+            '.product-gallery img',
+            '.product-image img',
+            'img[itemprop="image"]',
+            'img[data-lazy="false"]',
+            'img'
+          ];
+
+          const candidates = [];
+
+          function pushCandidate(url, el, bonus = 0) {
+            if (!url) return;
+            let score = 0;
+            const u = url.toLowerCase();
+            if (/(large|xl|original|full|zoom)/.test(u)) score += 5;
+            if (IMG_EXT.test(u)) score += 2;
+            const area = (el?.naturalWidth || 0) * (el?.naturalHeight || 0);
+            if (area > 300000) score += 3; // ~>=800x600
+            if (el?.getAttribute && el.getAttribute('data-lazy') === 'false') score += 1;
+            score += bonus;
+            candidates.push({url, score});
+          }
+
+          // a) <img>
+          for (const sel of selectors) {
+            const list = document.querySelectorAll(sel);
+            list.forEach(img => pushCandidate(urlFromImg(img), img, 2));
+          }
+
+          // b) רקע CSS
+          document.querySelectorAll('[style*="background-image"]').forEach(el => {
+            pushCandidate(urlFromBg(el), el, 1);
+          });
+
+          // c) <a href="...jpg">
+          document.querySelectorAll('a[href]').forEach(a => {
+            const u = urlFromAnchor(a);
+            if (u) pushCandidate(u, a, 1);
+          });
+
+          if (!candidates.length) return null;
+          candidates.sort((a,b)=> b.score - a.score);
+          return candidates[0].url;
+        }
+
+        // Find the primary product image on the page and expose it for the React app.
+        window.PRODUCT_IMAGE_URL = findPrimaryImage();
+      })();
+    </script>
     <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>

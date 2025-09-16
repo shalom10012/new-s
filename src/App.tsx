@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import TryAtHome from './components/TryAtHome';
 
-const PRODUCT_IMAGE_URL = 'https://picsum.photos/seed/gardensale-chair/800/800';
+// The product image URL is now dynamically found by a script in index.html.
+// We provide a fallback for safety in case the script doesn't find an image.
+const FALLBACK_PRODUCT_IMAGE_URL = 'https://picsum.photos/seed/gardensale-chair/800/800';
+const PRODUCT_IMAGE_URL = (window as any).PRODUCT_IMAGE_URL || FALLBACK_PRODUCT_IMAGE_URL;
+
 
 const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
