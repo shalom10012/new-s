@@ -23,14 +23,16 @@
       In a real-world scenario, this would be the actual e-commerce page markup.
       The script below will find the best product image from this markup.
     -->
-    <div class="product-gallery" style="display: none;" aria-hidden="true">
-      <div class="image-container active">
+    <div class="product-gallery woocommerce-product-gallery" style="display: none;" aria-hidden="true">
+      <div class="image-container active slick-current">
         <img 
           src="https://picsum.photos/seed/small-chair/200/200" 
           srcset="https://picsum.photos/seed/medium-chair/400/400 400w, https://picsum.photos/seed/large-chair/800/800 800w, https://picsum.photos/seed/zoom-chair/1200/1200 1200w"
           sizes="(max-width: 600px) 400px, 800px"
+          data-large_image="https://picsum.photos/seed/large-chair/1600/1600"
           data-zoom-image="https://picsum.photos/seed/zoom-chair/1600/1600"
           alt="A different chair"
+          class="wp-post-image"
         />
       </div>
     </div>
@@ -62,8 +64,16 @@
             const u = extractInnerImageUrl(img.currentSrc);
             if (u) return u;
           }
+          
+          // 2) data-* נפוצים (עם עדיפות לגבוהים)
+          const attrs = ['data-large_image', 'data-zoom-image','data-large','data-full','data-original','data-src','data-lazy-src'];
+          for (const a of attrs) {
+            const v = img.getAttribute(a);
+            const url = extractInnerImageUrl(v);
+            if (url) return url;
+          }
 
-          // 2) srcset/data-srcset – נבחר את הכי גדול (descriptor של w או האחרון)
+          // 3) srcset/data-srcset – נבחר את הכי גדול (descriptor של w או האחרון)
           const srcsetRaw = img.getAttribute('srcset') || img.dataset.srcset || img.getAttribute('data-srcset');
           if (srcsetRaw) {
             // מפענחים לפי w אם אפשר, אחרת ניקח את האחרון
@@ -83,14 +93,6 @@
               const cand = extractInnerImageUrl(last.split(' ')[0]);
               if (cand) return cand;
             }
-          }
-
-          // 3) data-* נפוצים
-          const attrs = ['data-zoom-image','data-large','data-full','data-original','data-src','data-lazy-src'];
-          for (const a of attrs) {
-            const v = img.getAttribute(a);
-            const url = extractInnerImageUrl(v);
-            if (url) return url;
           }
 
           // 4) src רגיל
@@ -128,12 +130,14 @@
             if (u) return u;
           }
 
-          // 1) חיפוש לפי סלקטורים שכיחים
+          // 1) חיפוש לפי סלקטורים שכיחים (מהספציפי לכללי)
           const selectors = [
+            '.woocommerce-product-gallery .slick-current img.wp-post-image', // WooCommerce (Specific)
             '.product-gallery .slick-current img',
             '.product-gallery .active img',
-            '.product-gallery img',
+            '.woocommerce-product-gallery img',
             '.product-image img',
+            'img.wp-post-image', // WordPress main image
             'img[itemprop="image"]',
             'img[data-lazy="false"]',
             'img'
@@ -145,11 +149,13 @@
             if (!url) return;
             let score = 0;
             const u = url.toLowerCase();
-            if (/(large|xl|original|full|zoom)/.test(u)) score += 5;
+            if (/(large|xl|original|full|zoom)/.test(u) || (el?.dataset && (el.dataset.large_image || el.dataset.zoomImage))) score += 5;
             if (IMG_EXT.test(u)) score += 2;
-            const area = (el?.naturalWidth || 0) * (el?.naturalHeight || 0);
-            if (area > 300000) score += 3; // ~>=800x600
+            // Note: naturalWidth/Height might not be available immediately for lazy-loaded images
+            const area = (el?.naturalWidth || el?.width || 0) * (el?.naturalHeight || el?.height || 0);
+            if (area > 250000) score += 3; // ~>=500x500
             if (el?.getAttribute && el.getAttribute('data-lazy') === 'false') score += 1;
+            if (el?.classList?.contains('wp-post-image')) score += 2; // Higher score for main WP image
             score += bonus;
             candidates.push({url, score});
           }
@@ -157,7 +163,11 @@
           // a) <img>
           for (const sel of selectors) {
             const list = document.querySelectorAll(sel);
-            list.forEach(img => pushCandidate(urlFromImg(img), img, 2));
+            if (list.length > 0) {
+                list.forEach(img => pushCandidate(urlFromImg(img), img, 2));
+                // If we found candidates with a specific selector, we can often stop
+                if (candidates.length > 0) break;
+            }
           }
 
           // b) רקע CSS
@@ -168,10 +178,13 @@
           // c) <a href="...jpg">
           document.querySelectorAll('a[href]').forEach(a => {
             const u = urlFromAnchor(a);
-            if (u) pushCandidate(u, a, 1);
+            if (u && a.querySelector('img')) { // Only consider anchors that contain an image
+                pushCandidate(u, a, 1);
+            }
           });
-
+          
           if (!candidates.length) return null;
+
           candidates.sort((a,b)=> b.score - a.score);
           return candidates[0].url;
         }

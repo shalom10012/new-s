@@ -4,6 +4,7 @@ import { GoogleGenAI, Modality } from "@google/genai";
 const API_KEY = process.env.API_KEY;
 
 if (!API_KEY) {
+  // This error is for the developer during build time if the key isn't set.
   throw new Error("API_KEY environment variable not set. Please ensure it is configured in your environment.");
 }
 
@@ -56,13 +57,16 @@ export const fuseImages = async (productImage: ImageData, spaceImage: ImageData)
       // Check if the response was blocked or had another issue
       const textResponse = response.text;
       if (textResponse) {
-          throw new Error(`API returned text instead of an image: ${textResponse}`);
+          throw new Error(`שירות ה-AI החזיר טקסט במקום תמונה: ${textResponse}`);
       }
-      throw new Error("Could not extract the generated image from the API response.");
+      throw new Error("לא ניתן היה לחלץ את התמונה שנוצרה מתגובת ה-API.");
     }
 
   } catch (error) {
     console.error("Error in Gemini API call:", error);
-    throw new Error("Failed to generate image with Gemini API.");
+    if (error instanceof Error && (error.message.toLowerCase().includes('api key') || error.message.toLowerCase().includes('permission denied'))) {
+        throw new Error("מפתח ה-API חסר או לא תקין. אנא ודא/י שהוא מוגדר כראוי בסביבת הפרויקט שלך.");
+    }
+    throw new Error("אירעה שגיאה ביצירת התמונה. אנא נסה שוב.");
   }
 };
